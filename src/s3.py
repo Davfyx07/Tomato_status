@@ -1,8 +1,7 @@
 import boto3
 import os
-import mimetypes  # <--- IMPORTANTE: Librería para detectar tipos de archivo
+import mimetypes
 from dotenv import load_dotenv
-from botocore.exceptions import NoCredentialsError, ClientError
 
 load_dotenv()
 
@@ -10,17 +9,17 @@ def subir_archivo_a_s3(archivo, nombre_archivo):
     bucket = os.getenv('AWS_BUCKET_NAME')
     region = os.getenv('AWS_REGION')
     
-    # --- LÓGICA INTELIGENTE DE TIPOS ---
-    # 1. Intentamos tomar el tipo que dice el navegador/cliente
-    tipo_contenido = archivo.content_type
+    # --- LÓGICA BLINDADA PARA DETECTAR TIPO ---
+    # 1. Intentamos obtener el tipo si el objeto lo tiene (Flask)
+    tipo_contenido = getattr(archivo, 'content_type', None)
     
-    # 2. Si viene vacío (None), intentamos adivinarlo por la extensión (.png, .jpg)
+    # 2. Si es None (porque viene de un open() local), adivinamos por el nombre
     if not tipo_contenido:
         tipo_contenido, _ = mimetypes.guess_type(nombre_archivo)
     
-    # 3. Si aun así falla, ponemos un valor genérico por seguridad
+    # 3. Si sigue siendo None, ponemos el genérico
     if not tipo_contenido:
-        tipo_contenido = 'application/octet-stream' # Tipo genérico para "archivo binario"
+        tipo_contenido = 'application/octet-stream'
 
     print(f"--- SUBIENDO A AWS ---")
     print(f"Archivo: {nombre_archivo}")
@@ -34,15 +33,19 @@ def subir_archivo_a_s3(archivo, nombre_archivo):
     )
 
     try:
+        # Si es un archivo local abierto, nos aseguramos de estar al inicio
+        if hasattr(archivo, 'seek'):
+            archivo.seek(0)
+
         s3_client.upload_fileobj(
             archivo,
             bucket,
             nombre_archivo,
-            ExtraArgs={'ContentType': tipo_contenido} # Ahora enviamos el tipo correcto
+            ExtraArgs={'ContentType': tipo_contenido}
         )
         
         url = f"https://{bucket}.s3.{region}.amazonaws.com/{nombre_archivo}"
-        print(f"✅ ¡Subida exitosa! URL: {url}")
+        print(f"✅ Subida exitosa: {url}")
         return url
 
     except Exception as e:

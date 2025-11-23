@@ -43,7 +43,8 @@ function App() {
     formData.append('tipo_analisis', modelType)
 
     try {
-      const res = await axios.post('/api/analizar', formData)
+      // Usa la URL de ngrok que obtengas al ejecutar: ngrok http 5000
+      const res = await axios.post('https://intromittent-kami-robeless.ngrok-free.dev/analizar', formData)
       setResult(res.data)
     } catch (error) {
       console.error(error)

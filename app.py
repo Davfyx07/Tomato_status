@@ -13,8 +13,8 @@ app = Flask(__name__)
 CORS(app, origins=[
     "http://localhost:5173",
     "http://localhost:3000",
-    "https://tu-frontend.vercel.app",  # Cambiar por tu dominio real
-    "*"  # Quitar en producción real
+    "https://tomato-status.vercel.app",
+    "*"
 ])
 
 # Cargar modelos al iniciar

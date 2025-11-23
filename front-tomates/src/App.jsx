@@ -43,7 +43,7 @@ function App() {
     formData.append('tipo_analisis', modelType)
 
     try {
-      const res = await axios.post('http://18.188.93.127:5000/analizar', formData)
+      const res = await axios.post('/api/analizar', formData)
       setResult(res.data)
     } catch (error) {
       console.error(error)

@@ -8,5 +8,5 @@ Pillow==10.1.0
 python-dotenv==1.0.0
 pymongo==4.6.0
 boto3==1.29.7
-tensorflow==2.18.0
+tensorflow==2.15.0
 shapely==2.0.2

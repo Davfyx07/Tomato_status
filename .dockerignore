@@ -1,0 +1,31 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+
+# Frontend (no necesario en backend)
+front-tomates
+
+# Claves SSH
+*.pem
+
+# Archivos temporales
+temp_*
+*.tmp

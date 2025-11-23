@@ -63,20 +63,6 @@ def iniciar_modelos():
     except Exception as e:
         print(f"❌ Error YOLO: {e}")
 
-    # 2. Cargar EfficientNet
-    try:
-        if os.path.exists(RUTA_KERAS):
-            modelo_keras = tf.keras.models.load_model(RUTA_KERAS, compile=False)
-            print("✅ EfficientNet cargado (.keras)")
-        elif os.path.exists(RUTA_PESOS):
-            print("⚠️ .keras no encontrado, usando pesos .h5...")
-            modelo_keras = construir_modelo_inferencia(num_classes=len(NOMBRES_CLASES))
-            modelo_keras.load_weights(RUTA_PESOS)
-            print("✅ EfficientNet cargado (.h5 weights)")
-        else:
-            print(f"❌ No se encontró ningún modelo de clasificación")
-    except Exception as e:
-        print(f"❌ Error EfficientNet: {e}")
     # 2. Cargar EfficientNet (intenta .keras primero, luego .h5)
     try:
         if os.path.exists(RUTA_KERAS):

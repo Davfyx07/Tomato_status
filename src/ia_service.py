@@ -14,7 +14,7 @@ RUTA_YOLO = 'models/MODELO_FINAL_TOMATES_V4_150E.pt'
 RUTA_KERAS = 'models/modelo_tomates_efficientnet.keras'
 RUTA_PESOS = 'models/pesos_efficientnet.weights.h5'
 
-# Orden del entrenamiento
+# ⚠️ IMPORTANTE: Este orden debe coincidir con el que imprimió el entrenamiento
 NOMBRES_CLASES = ['Damaged', 'Old', 'Ripe', 'Unripe']
 
 modelo_yolo = None
@@ -91,12 +91,54 @@ def iniciar_modelos():
                 print(f"❌ Error en respaldo: {e2}")
 
 
+def calcular_iou_poligonos(poly1, poly2):
+    """Calcula Intersection over Union entre dos polígonos"""
+    try:
+        from shapely.geometry import Polygon
+        p1 = Polygon(poly1)
+        p2 = Polygon(poly2)
+        if not p1.is_valid or not p2.is_valid:
+            return 0
+        inter = p1.intersection(p2).area
+        union = p1.union(p2).area
+        return inter / union if union > 0 else 0
+    except:
+        # Fallback: comparar centros
+        c1 = (sum(p[0] for p in poly1)/len(poly1), sum(p[1] for p in poly1)/len(poly1))
+        c2 = (sum(p[0] for p in poly2)/len(poly2), sum(p[1] for p in poly2)/len(poly2))
+        dist = ((c1[0]-c2[0])**2 + (c1[1]-c2[1])**2)**0.5
+        return 1 if dist < 50 else 0
+
+
+def filtrar_detecciones_duplicadas(detecciones, iou_threshold=0.5):
+    """Elimina detecciones superpuestas, dejando la de mayor confianza"""
+    if len(detecciones) <= 1:
+        return detecciones
+    
+    # Ordenar por confianza (mayor primero)
+    detecciones = sorted(detecciones, key=lambda x: x['confianza'], reverse=True)
+    
+    filtradas = []
+    for det in detecciones:
+        es_duplicado = False
+        for det_aceptada in filtradas:
+            iou = calcular_iou_poligonos(det['poligono'], det_aceptada['poligono'])
+            if iou > iou_threshold:
+                es_duplicado = True
+                break
+        if not es_duplicado:
+            filtradas.append(det)
+    
+    return filtradas
+
+
 def detectar_objetos(ruta_imagen):
     """Detección con YOLO (segmentación)"""
     if modelo_yolo is None:
         return []
     
-    resultados = modelo_yolo(ruta_imagen, conf=0.45, iou=0.45, max_det=3)
+    # Bajamos iou a 0.3 para que YOLO sea más estricto internamente
+    resultados = modelo_yolo(ruta_imagen, conf=0.5, iou=0.3, max_det=5)
     detecciones = []
     
     for r in resultados:
@@ -110,6 +152,9 @@ def detectar_objetos(ruta_imagen):
                     "confianza": round(float(box.conf[0]), 2),
                     "poligono": coords
                 })
+    
+    # Filtrar duplicados (mismo tomate detectado 2 veces)
+    detecciones = filtrar_detecciones_duplicadas(detecciones, iou_threshold=0.4)
     
     return detecciones
 

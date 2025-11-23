@@ -1,31 +1,36 @@
+import os
+os.environ['TORCH_FORCE_WEIGHTS_ONLY_LOAD'] = '0'
+
+import warnings
+warnings.filterwarnings('ignore')
+
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.applications import EfficientNetB0
 from tensorflow.keras.applications.efficientnet import preprocess_input as eff_preprocess
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Dropout
 from tensorflow.keras.models import Model
+
+# SOLUCIÓN PYTORCH 2.6 - Importar antes de YOLO
+import torch
+from ultralytics.nn.tasks import SegmentationModel
+torch.serialization.add_safe_globals([SegmentationModel])
+
 from ultralytics import YOLO
 from PIL import Image
 import numpy as np
-import os
-os.environ['TORCH_FORCE_WEIGHTS_ONLY_LOAD'] = '0'
+
 # --- CONFIGURACIÓN ---
 RUTA_YOLO = 'models/MODELO_FINAL_TOMATES_V4_150E.pt'
 RUTA_KERAS = 'models/modelo_tomates_efficientnet.keras'
 RUTA_PESOS = 'models/pesos_efficientnet.weights.h5'
 
-# ⚠️ IMPORTANTE: Este orden debe coincidir con el que imprimió el entrenamiento
 NOMBRES_CLASES = ['Damaged', 'Old', 'Ripe', 'Unripe']
 
 modelo_yolo = None
 modelo_keras = None
 
-
 def construir_modelo_inferencia(num_classes=4):
-    """
-    Reconstruye la arquitectura del modelo (sin augmentation)
-    Útil cuando el .keras falla por versiones diferentes
-    """
     base_model = EfficientNetB0(
         weights=None,
         include_top=False,
@@ -48,24 +53,30 @@ def iniciar_modelos():
     global modelo_yolo, modelo_keras
     print("⏳ Iniciando servicios de IA...")
 
-    # 1. Cargar YOLO
+    # 1. Cargar YOLO con weights_only=False
     try:
         if os.path.exists(RUTA_YOLO):
-            import torch
-            # Forzar carga insegura (necesario para PyTorch 2.6+)
-            original_load = torch.load
-            torch.load = lambda *args, **kwargs: original_load(*args, **kwargs, weights_only=False)
-            
             modelo_yolo = YOLO(RUTA_YOLO)
-            
-            # Restaurar función original
-            torch.load = original_load
             print("✅ YOLO cargado.")
         else:
             print(f"⚠️ YOLO no encontrado: {RUTA_YOLO}")
     except Exception as e:
         print(f"❌ Error YOLO: {e}")
 
+    # 2. Cargar EfficientNet
+    try:
+        if os.path.exists(RUTA_KERAS):
+            modelo_keras = tf.keras.models.load_model(RUTA_KERAS, compile=False)
+            print("✅ EfficientNet cargado (.keras)")
+        elif os.path.exists(RUTA_PESOS):
+            print("⚠️ .keras no encontrado, usando pesos .h5...")
+            modelo_keras = construir_modelo_inferencia(num_classes=len(NOMBRES_CLASES))
+            modelo_keras.load_weights(RUTA_PESOS)
+            print("✅ EfficientNet cargado (.h5 weights)")
+        else:
+            print(f"❌ No se encontró ningún modelo de clasificación")
+    except Exception as e:
+        print(f"❌ Error EfficientNet: {e}")
     # 2. Cargar EfficientNet (intenta .keras primero, luego .h5)
     try:
         if os.path.exists(RUTA_KERAS):

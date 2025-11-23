@@ -8,7 +8,7 @@ from ultralytics import YOLO
 from PIL import Image
 import numpy as np
 import os
-
+os.environ['TORCH_FORCE_WEIGHTS_ONLY_LOAD'] = '0'
 # --- CONFIGURACIÓN ---
 RUTA_YOLO = 'models/MODELO_FINAL_TOMATES_V4_150E.pt'
 RUTA_KERAS = 'models/modelo_tomates_efficientnet.keras'
@@ -51,7 +51,15 @@ def iniciar_modelos():
     # 1. Cargar YOLO
     try:
         if os.path.exists(RUTA_YOLO):
+            import torch
+            # Forzar carga insegura (necesario para PyTorch 2.6+)
+            original_load = torch.load
+            torch.load = lambda *args, **kwargs: original_load(*args, **kwargs, weights_only=False)
+            
             modelo_yolo = YOLO(RUTA_YOLO)
+            
+            # Restaurar función original
+            torch.load = original_load
             print("✅ YOLO cargado.")
         else:
             print(f"⚠️ YOLO no encontrado: {RUTA_YOLO}")

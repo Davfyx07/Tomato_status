@@ -79,6 +79,8 @@ def analizar():
 
     except Exception as e:
         print(f"❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     finally:
         if os.path.exists(nombre_temp):

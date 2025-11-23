@@ -11,10 +11,13 @@ from tensorflow.keras.applications.efficientnet import preprocess_input as eff_p
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Dropout
 from tensorflow.keras.models import Model
 
-# SOLUCIÓN PYTORCH 2.6 - Importar antes de YOLO
+# SOLUCIÓN PYTORCH 2.6+ - Importar antes de YOLO
 import torch
-from ultralytics.nn.tasks import SegmentationModel
-torch.serialization.add_safe_globals([SegmentationModel])
+try:
+    from ultralytics.nn.tasks import SegmentationModel, DetectionModel, ClassificationModel
+    torch.serialization.add_safe_globals([SegmentationModel, DetectionModel, ClassificationModel])
+except ImportError:
+    pass # Si falla la importación, seguimos (puede ser versión vieja de ultralytics)
 
 from ultralytics import YOLO
 from PIL import Image
@@ -53,7 +56,7 @@ def iniciar_modelos():
     global modelo_yolo, modelo_keras
     print("⏳ Iniciando servicios de IA...")
 
-    # 1. Cargar YOLO con weights_only=False
+    # 1. Cargar YOLO
     try:
         if os.path.exists(RUTA_YOLO):
             modelo_yolo = YOLO(RUTA_YOLO)
@@ -63,15 +66,13 @@ def iniciar_modelos():
     except Exception as e:
         print(f"❌ Error YOLO: {e}")
 
-    # 2. Cargar EfficientNet (intenta .keras primero, luego .h5)
+    # 2. Cargar EfficientNet
     try:
         if os.path.exists(RUTA_KERAS):
-            # Opción A: Cargar modelo completo
             modelo_keras = tf.keras.models.load_model(RUTA_KERAS, compile=False)
             print("✅ EfficientNet cargado (.keras)")
         
         elif os.path.exists(RUTA_PESOS):
-            # Opción B: Reconstruir arquitectura + cargar pesos
             print("⚠️ .keras no encontrado, usando pesos .h5...")
             modelo_keras = construir_modelo_inferencia(num_classes=len(NOMBRES_CLASES))
             modelo_keras.load_weights(RUTA_PESOS)
@@ -79,13 +80,10 @@ def iniciar_modelos():
         
         else:
             print(f"❌ No se encontró ningún modelo de clasificación")
-            print(f"   Buscado: {RUTA_KERAS}")
-            print(f"   Buscado: {RUTA_PESOS}")
 
     except Exception as e:
         print(f"❌ Error EfficientNet: {e}")
         
-        # Intento de respaldo con pesos
         if os.path.exists(RUTA_PESOS):
             try:
                 print("🔄 Intentando cargar con pesos de respaldo...")
@@ -138,7 +136,7 @@ def filtrar_detecciones_duplicadas(detecciones, iou_threshold=0.5):
 
 
 def detectar_objetos(ruta_imagen):
-    """Detección con YOLO (segmentación)"""
+    """Detección con YOLO (usando máscaras de segmentación)"""
     if modelo_yolo is None:
         return []
     
@@ -147,11 +145,29 @@ def detectar_objetos(ruta_imagen):
     detecciones = []
     
     for r in resultados:
+        # 1. Intentar usar MÁSCARAS (Segmentación precisa)
         if r.masks is not None:
             for mask, box in zip(r.masks, r.boxes):
+                # Obtener coordenadas del polígono (contorno)
                 coords = mask.xy[0].tolist()
-                if len(coords) < 10:
+                
+                # Filtrar polígonos muy pequeños o inválidos
+                if len(coords) < 3:
                     continue
+
+                detecciones.append({
+                    "objeto": modelo_yolo.names[int(box.cls[0])],
+                    "confianza": round(float(box.conf[0]), 2),
+                    "poligono": coords
+                })
+        
+        # 2. Fallback a CAJAS (si el modelo no es de segmentación)
+        elif r.boxes is not None:
+            for box in r.boxes:
+                x1, y1, x2, y2 = box.xyxy[0].tolist()
+                coords = [
+                    [x1, y1], [x2, y1], [x2, y2], [x1, y2]
+                ]
                 detecciones.append({
                     "objeto": modelo_yolo.names[int(box.cls[0])],
                     "confianza": round(float(box.conf[0]), 2),
@@ -170,20 +186,13 @@ def clasificar_imagen(ruta_imagen):
         return "Modelo no disponible", 0.0
     
     try:
-        # 1. Cargar imagen y forzar RGB
         img = Image.open(ruta_imagen).convert('RGB')
-        
-        # 2. Redimensionar a 224x224
         img = img.resize((224, 224))
-        
-        # 3. Convertir a array y agregar dimensión batch
         img_array = np.array(img, dtype=np.float32)
         img_batch = np.expand_dims(img_array, axis=0)
 
-        # 4. Predecir (el preprocesamiento ya está dentro del modelo)
         prediccion = modelo_keras.predict(img_batch, verbose=0)
 
-        # 5. Obtener resultado
         indice = np.argmax(prediccion[0])
         nombre = NOMBRES_CLASES[indice]
         confianza = float(prediccion[0][indice]) * 100

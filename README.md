@@ -250,10 +250,4 @@ Este proyecto es parte de un trabajo académico.
 
 ## 👥 Autores
 
-- Tu Nombre - Universidad/Institución
-
-## 🙏 Agradecimientos
-
-- Ultralytics por YOLOv8
-- TensorFlow team
-- Comunidad de Python y React
+- Tu Nombre - Juan David Lozano (Davfyx)

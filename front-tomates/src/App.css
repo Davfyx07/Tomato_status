@@ -156,8 +156,8 @@ body {
 
 .image-preview img {
   width: 100%;
-  max-width: 500px;
-  max-height: 400px;
+  max-width: 350px;
+  max-height: 280px;
   height: auto;
   display: block;
   margin: 0 auto;

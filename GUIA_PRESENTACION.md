@@ -47,11 +47,11 @@ Forwarding  https://abc123-xyz.ngrok-free.dev -> http://localhost:5000
 
 **⚠️ IMPORTANTE:** 
 - **Copia esa URL HTTPS** (ejemplo: `https://abc123-xyz.ngrok-free.dev`)
-- **NO CIERRES esta terminal SSH** - ngrok debe seguir corriendo durante toda la presentación
+- **NO CIERRES esta terminal SSH** - ngrok debe seguir corriendo durante toda la presentación ACTUALMTE NO CAMBIA, PERO POR IS LAS MOSCAS
 
 ---
 
-### 4. Actualizar el frontend con la nueva URL de ngrok
+### 4. Actualizar el frontend con la nueva URL de ngrok (NO ES NECESARIO; NO ESTA ACTULIZANDO, GOOOD)
 
 **En tu computadora local:**
 

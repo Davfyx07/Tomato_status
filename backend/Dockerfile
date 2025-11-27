@@ -16,6 +16,9 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copiar archivo de variables de entorno
+COPY ../.env .
+
 # Copiar código fuente
 COPY src/ ./src/
 COPY app.py .

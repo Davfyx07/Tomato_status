@@ -17,7 +17,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar archivo de variables de entorno
-COPY ../.env .
+COPY .env .
 
 # Copiar código fuente
 COPY src/ ./src/

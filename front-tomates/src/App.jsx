@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react"
 import axios from "axios"
-import { Brain, Zap, RefreshCw } from "lucide-react"
+import { Brain, Zap, RefreshCw, AlertCircle, X } from "lucide-react"
 import { ImageUpload } from "./components/ImageUpload.jsx"
 import "./App.css"
 
@@ -19,6 +19,7 @@ function App() {
   const [modelType, setModelType] = useState("segmentacion")
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
+  const [error, setError] = useState(null)
   const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 })
   const imageRef = useRef(null)
 
@@ -26,17 +27,20 @@ function App() {
     setFile(file)
     setPreview(previewUrl)
     setResult(null)
+    setError(null) // Limpiar error al cargar nueva imagen
   }
 
   const resetApp = () => {
     setFile(null)
     setPreview(null)
     setResult(null)
+    setError(null)
   }
 
   const handleProcess = async () => {
     if (!file) return
     setLoading(true)
+    setError(null) // Limpiar error anterior
 
     const formData = new FormData()
     formData.append('imagen', file)
@@ -47,8 +51,31 @@ function App() {
       const res = await axios.post('https://intromittent-kami-robeless.ngrok-free.dev/analizar', formData)
       setResult(res.data)
     } catch (error) {
-      console.error(error)
-      alert("Error: Revisa la terminal de Python")
+      console.error('Error completo:', error)
+
+      // Determinar mensaje de error según el caso
+      let errorMessage = 'Error procesando la imagen'
+
+      if (error.response) {
+        // Error del servidor (4xx, 5xx)
+        errorMessage = error.response.data?.error || error.response.statusText
+
+        if (error.response.status === 415) {
+          errorMessage = 'Formato de archivo no soportado. Use PNG, JPG o JPEG.'
+        } else if (error.response.status === 413) {
+          errorMessage = 'El archivo es muy grande. Máximo permitido: 10MB'
+        } else if (error.response.status === 503) {
+          errorMessage = 'Servicio temporalmente no disponible. Intente nuevamente.'
+        }
+      } else if (error.request) {
+        // Error de red (no hay respuesta)
+        errorMessage = 'No se pudo conectar al servidor. Verifique su conexión.'
+      }
+
+      setError({
+        message: errorMessage,
+        code: error.response?.status
+      })
     } finally {
       setLoading(false)
     }
@@ -88,6 +115,23 @@ function App() {
           🍅 TomateScan AI
         </h1>
       </header>
+
+      {/* Banner de Error */}
+      {error && (
+        <div className="error-banner">
+          <AlertCircle size={20} />
+          <div className="error-content">
+            <strong>Error:</strong> {error.message}
+          </div>
+          <button
+            onClick={() => setError(null)}
+            className="error-close"
+            aria-label="Cerrar error"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      )}
 
       {/* MODO CONFIGURACIÓN (Sin resultados) */}
       {!result && (
